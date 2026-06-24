@@ -1,5 +1,5 @@
 # 1. L'OS de base : Un Linux minimaliste avec Python 3.11 pré-installé
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 # 2. Le dossier de travail à l'intérieur de la boîte
 WORKDIR /app
