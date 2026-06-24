@@ -1,7 +1,10 @@
-pandas
-numpy
-scikit-learn
-xgboost
-matplotlib
-seaborn
-jupyter
+pandas==3.0.3
+numpy==2.5.0
+scikit-learn==1.9.0
+xgboost==3.3.0
+matplotlib==3.11.0
+seaborn==0.13.2
+jupyter==1.1.1
+fastapi==0.138.0
+uvicorn[standard]
+pydantic==2.13.4
