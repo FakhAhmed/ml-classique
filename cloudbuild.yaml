@@ -1,0 +1,34 @@
+steps:
+  # ÉTAPE 1 : Construction de l'image Docker
+  # On tagge l'image avec l'ID unique de ton commit Git ($COMMIT_SHA) pour la traçabilité absolue
+  - name: 'gcr.io/cloud-builders/docker'
+    args: 
+      - 'build'
+      - '-t'
+      - 'europe-west9-docker.pkg.dev/$PROJECT_ID/ml-models-repo/api-churn-ml:$COMMIT_SHA'
+      - '.'
+
+  # ÉTAPE 2 : Envoi de l'image dans notre nouveau garage Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: 
+      - 'push'
+      - 'europe-west9-docker.pkg.dev/$PROJECT_ID/ml-models-repo/api-churn-ml:$COMMIT_SHA'
+
+  # ÉTAPE 3 : Déploiement de cette image précise sur Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'api-churn-ml'
+      - '--image'
+      - 'europe-west9-docker.pkg.dev/$PROJECT_ID/ml-models-repo/api-churn-ml:$COMMIT_SHA'
+      - '--region'
+      - 'europe-west9'
+      - '--allow-unauthenticated'
+      - '--port'
+      - '8080'
+
+# Déclaration de l'image générée pour les logs de Google Cloud
+images:
+  - 'europe-west9-docker.pkg.dev/$PROJECT_ID/ml-models-repo/api-churn-ml:$COMMIT_SHA'
