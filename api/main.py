@@ -3,31 +3,47 @@ import pandas as pd
 import xgboost as xgb
 from fastapi import FastAPI
 from pydantic import BaseModel
-from google.cloud import storage
-import os
-
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MODEL_PATH = os.path.join(BASE_DIR, "src", "xgb_churn_model.json")
+from google.cloud import storage, aiplatform # <-- NOUVEL IMPORT ICI
 
 app = FastAPI(title="Telecom Churn API")
 
-# --- NOUVELLE LOGIQUE DE TÉLÉCHARGEMENT GCS ---
-BUCKET_NAME = "modeles-ia-ml-classique-churn"
-MODEL_PATH_GCS = "v1/model.bst"
+# --- NOUVELLE LOGIQUE : INTERROGATION DE VERTEX AI ---
+PROJECT_ID = "ml-classique-churn"
+REGION = "europe-west9"
+MODEL_NAME = "churn-prediction-model"
 LOCAL_MODEL_PATH = "/tmp/model.bst"
 
-print("⏳ Téléchargement du modèle depuis GCS...")
+print("🔍 Interrogation de Vertex AI...")
+aiplatform.init(project=PROJECT_ID, location=REGION)
+
+# On demande à Vertex AI de trouver le modèle par son nom
+models = aiplatform.Model.list(filter=f"display_name={MODEL_NAME}")
+if not models:
+    raise Exception(f"Modèle {MODEL_NAME} introuvable dans Vertex AI !")
+
+latest_model = models[0]
+model_uri = latest_model.uri  # ex: gs://modeles-ia-ml-classique-churn/v1/
+print(f"📍 Version officielle trouvée dans le registre : {model_uri}")
+
+# Extraction du nom du bucket et du chemin exact
+bucket_name = model_uri.split("/")[2]
+blob_prefix = model_uri.replace(f"gs://{bucket_name}/", "")
+blob_path = f"{blob_prefix}model.bst"
+
+print("⏳ Téléchargement depuis le coffre-fort...")
 client = storage.Client()
-bucket = client.bucket(BUCKET_NAME)
-blob = bucket.blob(MODEL_PATH_GCS)
+bucket = client.bucket(bucket_name)
+blob = bucket.blob(blob_path)
 blob.download_to_filename(LOCAL_MODEL_PATH)
-print("✅ Modèle téléchargé avec succès !")
+print("✅ Modèle téléchargé avec succès et prêt pour l'inférence !")
+
+# -----------------------------------------------------
 
 # On charge le modèle depuis le fichier temporaire
 model = xgb.XGBClassifier()
 model.load_model(LOCAL_MODEL_PATH)
 
-# NOUVEAU : On extrait la liste exacte des 30 colonnes attendues par le modèle
+# On extrait la liste exacte des 30 colonnes attendues par le modèle
 EXPECTED_FEATURES = model.get_booster().feature_names
 
 class CustomerData(BaseModel):
@@ -40,14 +56,9 @@ def read_root():
 @app.post("/predict")
 def predict_churn(data: CustomerData):
     try:
-        # 1. Création du tableau avec les données reçues (ex: 19 colonnes)
         df = pd.DataFrame([data.features])
-        
-        # 2. LE GILET DE SAUVETAGE : On force le tableau à avoir les 30 colonnes. 
-        # Celles qui manquent seront remplies par des 0 automatiquement.
         df = df.reindex(columns=EXPECTED_FEATURES, fill_value=0)
         
-        # 3. Prédiction (On convertit explicitement en float pour éviter les bugs JSON)
         probability = float(model.predict_proba(df)[0][1])
         prediction = 1 if probability > 0.50 else 0
         
@@ -57,5 +68,4 @@ def predict_churn(data: CustomerData):
             "risk_level": "🔴 Haut" if probability > 0.65 else ("🟠 Moyen" if probability > 0.35 else "🟢 Bas")
         }
     except Exception as e:
-        # S'il y a une erreur, on la renvoie proprement en texte au lieu d'un crash 500
         return {"erreur_interne": str(e)}

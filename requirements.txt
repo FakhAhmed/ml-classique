@@ -9,3 +9,4 @@ fastapi==0.138.0
 uvicorn[standard]
 pydantic==2.13.4
 google-cloud-storage
+google-cloud-aiplatform
