@@ -13,8 +13,8 @@ app = FastAPI(title="Telecom Churn API")
 
 # --- NOUVELLE LOGIQUE DE TÉLÉCHARGEMENT GCS ---
 BUCKET_NAME = "modeles-ia-ml-classique-churn"
-MODEL_PATH_GCS = "v1/xgb_churn_model.json"
-LOCAL_MODEL_PATH = "/tmp/xgb_churn_model.json"
+MODEL_PATH_GCS = "v1/model.bst"
+LOCAL_MODEL_PATH = "/tmp/model.bst"
 
 print("⏳ Téléchargement du modèle depuis GCS...")
 client = storage.Client()
