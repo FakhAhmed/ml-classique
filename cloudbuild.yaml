@@ -32,3 +32,7 @@ steps:
 # Déclaration de l'image générée pour les logs de Google Cloud
 images:
   - 'europe-west9-docker.pkg.dev/$PROJECT_ID/ml-models-repo/api-churn-ml:$COMMIT_SHA'
+
+#On force l'utilisation de Cloud Logging
+options:
+  logging: CLOUD_LOGGING_ONLY
